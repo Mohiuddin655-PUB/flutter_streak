@@ -181,6 +181,17 @@ class Streak extends ValueNotifier<StreakData> {
     } catch (_) {}
   }
 
+  static Future<void> reset({String? uid, Set<String>? contributors}) async {
+    if (_i == null) return;
+    if (uid != null) i.uid = uid;
+    if (contributors != null) i.contributors = contributors;
+    try {
+      i.value = StreakData.initial();
+      await load();
+      listen();
+    } catch (_) {}
+  }
+
   static void applyUid(String uid) {
     if (_i == null) return;
     i.uid = uid;

@@ -1,3 +1,7 @@
+## 1.0.1
+
+* Add reset function to reset the streak data
+
 ## 1.0.0
 
 * Initial release of **flutter_streak**
