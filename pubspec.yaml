@@ -1,0 +1,19 @@
+name: flutter_streak
+description: "The flutter_streak Dart package provides a simple and flexible way to track user streaks in Flutter apps. It manages streak counts, contribution tracking, and daily progress while persisting data through a delegate system."
+version: 1.0.0
+repository:
+
+environment:
+  sdk: ^3.9.2
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
