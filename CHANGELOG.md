@@ -1,3 +1,12 @@
+## 2.0.0
+
+* Rewritten. `Streak.i` is one instance for good: `init`, `update`, `active`, `restore`, `refresh`, `clear` and `on`
+* A missed day starts again from 0; the broken streak is kept as `last`, and `restore()` brings it back any time, its
+  missed days kept in `restored` (the ignore list); `best` is the longest ever
+* Modes `single` and `team`: a team day counts once every member completes it, and keeps `members`, `done` and `active`
+* `StreakDelegate`: `listen`, an atomic `write`, and optional `cached`, `now` and `canRestore`
+* Days are `YYYY-MM-DD` keys; 1.x streaks (`count`, `time`, `history`) still read, and `time` is still written
+
 ## 1.0.3
 
 * Add `Streak.clear()` to stop listening and drop the streak on sign-out

@@ -1,59 +1,53 @@
 # flutter_streak
 
-A simple and flexible Flutter package for tracking daily streaks.  
-Useful for habit trackers, learning apps, fitness challenges, or any app that requires consecutive daily actions.
+Daily streaks for Flutter, alone or in a team, kept wherever you choose through a `StreakDelegate`.
 
 ## Features
 
-- 🔥 Track daily streaks with automatic reset if a day is skipped.
-- 👥 Support for single-user or multi-contributor streaks.
-- 📦 Custom persistence via `StreakDelegate` (local, database, or cloud).
-- 📊 Store and retrieve streak count, date, contributors, and history.
-- ⏱️ Real-time updates through streams.
-
-## Getting started
-
-Add the dependency in your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  flutter_streak: ^0.0.1
-```
-
-Then run:
-```shell
-flutter pub get
-```
+- A day counts once it is completed; a missed day starts the streak again from 0.
+- The longest streak (`best`) and the last broken one (`last`), which `restore()` brings back however long ago it broke.
+- Restored days are kept apart (`restored`, the ignore list); counted days in `history`, for a calendar.
+- Two modes: `single`, and `team`, where a day counts only once every member completes it. Each team day keeps who
+  was in the team, who completed it (`done`, for progress) and who was active.
+- `Streak.i.value` at once from anywhere, and `Streak.i.on((latest) {})` for changes.
+- `canRestore` on the delegate, to charge for a restore.
+- Reads 1.x streaks (`count`, `time`, `history`).
 
 ## Usage
 
-Here’s a minimal example:
 ```dart
-import 'package:flutter_streak/flutter_streak.dart';
+Streak.i.init(delegate: MyDelegate(), member: uid);                      // single
+Streak.i.init(delegate: MyDelegate(), member: uid, mode: StreakMode.team, members: {uid, partnerId});
 
+await Streak.i.update();   // this member completed today
+await Streak.i.active();   // team: active today without completing
+await Streak.i.restore();  // the last streak back
+Streak.i.refresh();        // a day may have passed (back from the background)
+Streak.i.clear();          // signed out
+
+final stop = Streak.i.on((latest) => print(latest.count));
+```
+
+A delegate keeps the streak and says what day it is:
+
+```dart
 class MyDelegate extends StreakDelegate {
-  Map<String, dynamic>? _store;
+  @override
+  Stream<Map<String, dynamic>?> listen() => ...;
+
+  /// Atomically, such as in a transaction; `change` may run more than once.
+  @override
+  Future<Map<String, dynamic>?> write(Map<String, dynamic>? Function(Map<String, dynamic>? stored) change) => ...;
 
   @override
-  Future<Map?> get() async => _store;
+  Map<String, dynamic>? cached() => ...;   // optional: shown at once
 
   @override
-  Stream<Map?> listen() async* {
-    yield _store;
-  }
+  DateTime now() => ...;                   // optional: the server's day
 
   @override
-  Future<void> set(Map<String, dynamic> props) async {
-    _store = props;
-  }
-}
-
-void main() async {
-  await Streak.init(delegate: MyDelegate());
-
-  // Increase streak
-  await Streak.update();
-
-  print('Current streak: ${Streak.i.value.count}');
+  Future<bool> canRestore(StreakData data) async => ...; // optional: once paid
 }
 ```
+
+See `example/` for an in-memory delegate.
