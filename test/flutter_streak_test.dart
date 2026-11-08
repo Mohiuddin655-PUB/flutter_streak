@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_streak/flutter_streak.dart';
 
@@ -16,6 +18,23 @@ class MockDelegate extends StreakDelegate {
   Future<void> set(Map<String, dynamic> props) async {
     store = props;
   }
+}
+
+class ErrorDelegate extends MockDelegate {
+  @override
+  Stream<Map?> listen() async* {
+    yield* Stream<Map?>.error(StateError('offline'));
+    yield {"count": 2, "time": DateTime.now().millisecondsSinceEpoch};
+  }
+}
+
+class ControlledDelegate extends MockDelegate {
+  final _controller = StreamController<Map?>();
+
+  bool get hasListener => _controller.hasListener;
+
+  @override
+  Stream<Map?> listen() => _controller.stream;
 }
 
 void main() {
@@ -44,7 +63,10 @@ void main() {
       await Streak.update();
       final countAfterFirst = Streak.i.value.count;
       await Streak.update();
-      expect(Streak.i.value.count, countAfterFirst); // should not increment again
+      expect(
+        Streak.i.value.count,
+        countAfterFirst,
+      ); // should not increment again
     });
 
     test('mergeWith correctly merges map data', () {
@@ -58,6 +80,52 @@ void main() {
       });
       expect(merged.count, 5);
       expect(merged.contributes.contains("u1"), true);
+    });
+
+    test('contributable streak resets after a missed day', () async {
+      final old = DateTime.now().subtract(const Duration(days: 3));
+      delegate.store = {
+        "count": 4,
+        "time": old.millisecondsSinceEpoch,
+        "contributes": ["u1", "u2"],
+      };
+      await Streak.init(
+        delegate: delegate,
+        contributable: true,
+        uid: "u1",
+        contributors: {"u1", "u2"},
+      );
+      expect(Streak.i.value.count, 0);
+    });
+
+    test('contributable streak keeps count from a full yesterday', () async {
+      final yesterday = DateTime.now().subtract(const Duration(days: 1));
+      delegate.store = {
+        "count": 4,
+        "time": yesterday.millisecondsSinceEpoch,
+        "contributes": ["u1", "u2"],
+      };
+      await Streak.init(
+        delegate: delegate,
+        contributable: true,
+        uid: "u1",
+        contributors: {"u1", "u2"},
+      );
+      expect(Streak.i.value.count, 4);
+    });
+
+    test('stream error is handled and later events still arrive', () async {
+      await Streak.init(delegate: ErrorDelegate());
+      await Future<void>.delayed(Duration.zero);
+      expect(Streak.i.value.count, 2);
+    });
+
+    test('init again stops the old listener', () async {
+      final first = ControlledDelegate();
+      await Streak.init(delegate: first);
+      expect(first.hasListener, true);
+      await Streak.init(delegate: MockDelegate());
+      expect(first.hasListener, false);
     });
   });
 }

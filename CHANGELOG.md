@@ -1,3 +1,9 @@
+## 1.0.2
+
+* Fix: a contributable streak now resets after a missed day
+* Fix: errors from the delegate stream no longer go unhandled
+* Fix: calling init again stops the old listener
+
 ## 1.0.1
 
 * Add reset function to reset the streak data

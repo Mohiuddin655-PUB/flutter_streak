@@ -150,11 +150,12 @@ class Streak extends ValueNotifier<StreakData> {
 
   static StreakData _normalized(StreakData v) {
     if (v.isToday) return v;
+    // A missed day breaks the streak, even when the last day was fully contributed.
+    var alive = v.isYesterdayOrToday;
     if (i.contributable) {
-      final contributed = i.contributors.every(v.contributes.contains);
-      return v.copyWith(contributes: {}, count: !contributed ? 0 : null);
+      alive = alive && i.contributors.every(v.contributes.contains);
     }
-    return v.copyWith(contributes: {}, count: !v.isYesterdayOrToday ? 0 : null);
+    return v.copyWith(contributes: {}, count: alive ? null : 0);
   }
 
   static Future<void> _callbackHandler(AsyncCallback callback) async {
@@ -173,6 +174,8 @@ class Streak extends ValueNotifier<StreakData> {
     Set<String>? contributors,
   }) async {
     try {
+      // Only the stream is stopped: widgets may still hold the old notifier.
+      await _i?._sub?.cancel();
       _i = Streak._(contributable, delegate);
       if (uid != null) i.uid = uid;
       if (contributors != null) i.contributors = contributors;
@@ -219,10 +222,14 @@ class Streak extends ValueNotifier<StreakData> {
     if (_i == null) return;
     try {
       i._sub?.cancel();
-      i._sub = i._delegate.listen().map(StreakData.parse).listen((value) {
-        i.value = _normalized(value);
-        i.loaded = true;
-      });
+      i._sub = i._delegate.listen().map(StreakData.parse).listen(
+        (value) {
+          i.value = _normalized(value);
+          i.loaded = true;
+        },
+        // A failed event keeps the last value; later events still arrive.
+        onError: (Object _) {},
+      );
     } catch (_) {}
   }
 
