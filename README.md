@@ -13,6 +13,87 @@ Daily streaks for Flutter, alone or in a team, kept wherever you choose through 
 - `canRestore` on the delegate, to charge for a restore.
 - Reads 1.x streaks (`count`, `time`, `history`).
 
+## How it works
+
+Every read settles the streak first: a streak whose last counted day is before yesterday has broken.
+
+```mermaid
+flowchart TD
+    A[Streak read] --> B{Last counted day<br/>before yesterday?}
+    B -- No --> C[As it is]
+    B -- Yes --> D[count = 0<br/>last = old count<br/>lastDay = old day]
+```
+
+### Single mode
+
+```mermaid
+flowchart TD
+    A["update()"] --> B[Settle]
+    B --> C{Today already counted?}
+    C -- Yes --> N[Nothing written]
+    C -- No --> D{Yesterday counted?}
+    D -- Yes --> E[count + 1]
+    D -- No --> F[count = 1]
+    E --> G[Today into history<br/>best = max<br/>saved]
+    F --> G
+```
+
+### Team mode
+
+```mermaid
+flowchart TD
+    A["Member X: update()"] --> B[Settle]
+    B --> C{X done today?}
+    C -- Yes --> N[Nothing written]
+    C -- No --> D["days[today]: members = team<br/>done += X, active += X"]
+    D --> E{Every member done?}
+    E -- No --> S["Only days[today] saved<br/>count unchanged"]
+    E -- Yes --> F{Yesterday counted?}
+    F -- Yes --> G[count + 1]
+    F -- No --> H[count = 1]
+    G --> I[Today into history<br/>best = max<br/>saved]
+    H --> I
+    Y["Member Y: active()"] --> Z["days[today].active += Y<br/>(not done)"]
+```
+
+### Restore
+
+```mermaid
+flowchart TD
+    A["restore()"] --> B{last > 0?}
+    B -- No --> U[unavailable]
+    B -- Yes --> C{"delegate.canRestore()<br/>(such as paid)"}
+    C -- No --> D[declined]
+    C -- Yes --> E[Missed days = lastDay + 1<br/>to the day before the current streak<br/>or yesterday when there is none]
+    E --> F[restored += missed days<br/>count = last + count<br/>last = 0]
+    F --> R[restored]
+```
+
+## Use cases
+
+```mermaid
+flowchart LR
+    subgraph Single["Single: a habit app"]
+        S1[Opens the app<br/>each day] --> S2["update()"] --> S3[Streak count<br/>on the home screen]
+    end
+    subgraph Team["Team: a couple or a group"]
+        T1[Each member<br/>does their part] --> T2["update() each"] --> T3[Day counts when<br/>all are done]
+        T4[Member opens<br/>but doesn't finish] --> T5["active()"]
+    end
+    subgraph Restore["Restore a broken streak"]
+        R1[Missed days] --> R2[last kept] --> R3["canRestore()<br/>points or payment"] --> R4["restore()"]
+    end
+    subgraph Calendar["Calendar and history"]
+        C1[history: completed days]
+        C2[restored: the ignore list]
+        C3["days[day]: done / members<br/>as progress"]
+        C4["days[day].active<br/>in a popup"]
+    end
+```
+
+Example: completed on the 1st and the 2nd, missed the 3rd, completed the 4th: `count` 1, `last` 2. A restore puts the
+3rd in `restored`, and `count` is 3.
+
 ## Usage
 
 ```dart
