@@ -13,6 +13,20 @@ Daily streaks for Flutter, alone or in a team, kept wherever you choose through 
 - `canRestore` on the delegate, to charge for a restore.
 - Reads 1.x streaks (`count`, `time`, `history`).
 
+## What it looks like
+
+Sample screens of an app built on it (the UI is yours; the package gives the data):
+
+| Streak on a home screen | Calendar from history | Restore a broken streak | A team's day |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/1_home.png" width="200" alt="Home screen with an 8-day streak"> | <img src="screenshots/2_calendar.png" width="200" alt="Calendar with completed and restored days"> | <img src="screenshots/3_restore.png" width="200" alt="Sheet to restore a 12-day streak"> | <img src="screenshots/4_team.png" width="200" alt="Team calendar with a day's popup"> |
+| `Streak.i.value`, `update()` | `history`, `restored`, `best` | `last`, `canRestore()`, `restore()` | `StreakMode.team`, `days[day]` |
+
+- **Home:** `Streak.i.value.count` and `best`, rebuilt through `Streak.i.on` or a `ValueListenableBuilder`; `update()` when the day's action is done.
+- **Calendar:** days in `history` (completed) and in `restored` (the ignore list) drawn apart; every other past day was missed.
+- **Restore:** shown when `restorable` (a broken `last`); `canRestore()` on the delegate is where a price goes.
+- **Team:** each day's ring is `days[day].progress` (done / members); tapping a day lists `done` and `active`.
+
 ## How it works
 
 Every read settles the streak first: a streak whose last counted day is before yesterday has broken.

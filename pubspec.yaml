@@ -17,3 +17,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
 
 flutter:
+
+screenshots:
+  - description: A streak on a home screen, with the best streak.
+    path: screenshots/1_home.png
+  - description: A calendar of completed and restored days.
+    path: screenshots/2_calendar.png
+  - description: Restoring a broken streak.
+    path: screenshots/3_restore.png
+  - description: A team streak's day, who completed it and who was active.
+    path: screenshots/4_team.png
