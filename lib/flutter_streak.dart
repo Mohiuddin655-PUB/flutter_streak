@@ -15,25 +15,28 @@ class StreakData {
     this.history = const {},
   });
 
-  bool get isToday {
-    final now = DateTime.now();
-    return now.day == time.day &&
-        now.month == time.month &&
-        now.year == time.year;
+  /// [moment]'s calendar day as a UTC date, so days compare the same in any time zone.
+  static DateTime dayOf(DateTime moment) =>
+      DateTime.utc(moment.year, moment.month, moment.day);
+
+  /// [time] falls on [today]'s day.
+  bool isTodayOn(DateTime today) => dayOf(time) == dayOf(today);
+
+  /// [time] falls on [today]'s day or the day before: the streak still runs.
+  bool isAliveOn(DateTime today) {
+    final day = dayOf(time), now = dayOf(today);
+    return day == now || day == now.subtract(const Duration(days: 1));
   }
 
-  bool get isYesterdayOrToday {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final yesterday = today.subtract(const Duration(days: 1));
-    final checkDate = DateTime(time.year, time.month, time.day);
-    final value = checkDate == today || checkDate == yesterday;
-    return value;
-  }
+  /// By the phone's clock; [Streak] uses [StreakDelegate.today].
+  bool get isToday => isTodayOn(DateTime.now());
+
+  /// By the phone's clock; [Streak] uses [StreakDelegate.today].
+  bool get isYesterdayOrToday => isAliveOn(DateTime.now());
 
   StreakData.initial()
     : count = 0,
-      time = DateTime(0),
+      time = DateTime.utc(0),
       contributes = {},
       history = {};
 
@@ -60,7 +63,7 @@ class StreakData {
     return copyWith(
       count: count is num ? count.toInt() : null,
       time: time is num
-          ? DateTime.fromMillisecondsSinceEpoch(time.toInt())
+          ? DateTime.fromMillisecondsSinceEpoch(time.toInt(), isUtc: true)
           : null,
       contributes: contributes is List
           ? contributes
@@ -83,8 +86,8 @@ class StreakData {
     return StreakData(
       count is num ? count.toInt() : 0,
       time is num
-          ? DateTime.fromMillisecondsSinceEpoch(time.toInt())
-          : DateTime(0),
+          ? DateTime.fromMillisecondsSinceEpoch(time.toInt(), isUtc: true)
+          : DateTime.utc(0),
       contributes: contributes is List
           ? contributes
                 .map((e) => e.toString())
@@ -130,6 +133,10 @@ abstract class StreakDelegate {
   Stream<Map?> listen();
 
   Future<void> set(Map<String, dynamic> props);
+
+  /// Now, by the clock the streak's days are counted on; its calendar day is the day. The phone's clock unless a
+  /// delegate gives a trusted one (such as the server's).
+  DateTime today() => DateTime.now();
 }
 
 class Streak extends ValueNotifier<StreakData> {
@@ -149,9 +156,10 @@ class Streak extends ValueNotifier<StreakData> {
   static Streak get i => _i!;
 
   static StreakData _normalized(StreakData v) {
-    if (v.isToday) return v;
+    final today = i._delegate.today();
+    if (v.isTodayOn(today)) return v;
     // A missed day breaks the streak, even when the last day was fully contributed.
-    var alive = v.isYesterdayOrToday;
+    var alive = v.isAliveOn(today);
     if (i.contributable) {
       alive = alive && i.contributors.every(v.contributes.contains);
     }
@@ -195,6 +203,19 @@ class Streak extends ValueNotifier<StreakData> {
     } catch (_) {}
   }
 
+  /// Signed out: stops listening and drops the streak, until [init] starts it again.
+  static Future<void> clear() async {
+    if (_i == null) return;
+    try {
+      await i._sub?.cancel();
+    } catch (_) {}
+    i._sub = null;
+    i.uid = '';
+    i.contributors = {};
+    i.loaded = false;
+    i.value = StreakData.initial();
+  }
+
   static void applyUid(String uid) {
     if (_i == null) return;
     i.uid = uid;
@@ -236,24 +257,25 @@ class Streak extends ValueNotifier<StreakData> {
   static Future<void> update() async {
     return _callbackHandler(() async {
       StreakData v = i.value;
+      final today = i._delegate.today();
+      final date = StreakData.dayOf(today);
+      final day = "${date.year}/${date.month}/${date.day}";
       if (!i._isSingle) {
         if (v.contributes.contains(i.uid)) return;
         final contributes = {i.uid, ...v.contributes};
         final increase = i.contributors.every(contributes.contains);
-        final date = DateTime.now();
         i.value = v.copyWith(
           count: increase ? v.count + 1 : null,
           time: date,
           contributes: {i.uid, ...v.contributes},
-          history: {...v.history, "${date.year}/${date.month}/${date.day}"},
+          history: {...v.history, day},
         );
       } else {
-        if (v.isToday) return;
-        final date = DateTime.now();
+        if (v.isTodayOn(today)) return;
         i.value = v.copyWith(
           count: v.count + 1,
           time: date,
-          history: {...v.history, "${date.year}/${date.month}/${date.day}"},
+          history: {...v.history, day},
         );
       }
       await i._delegate.set(i.value.props);

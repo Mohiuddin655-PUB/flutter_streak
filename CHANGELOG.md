@@ -1,3 +1,9 @@
+## 1.0.3
+
+* Add `Streak.clear()` to stop listening and drop the streak on sign-out
+* Add `StreakDelegate.today()`: days are counted on the delegate clock (such as the server), the phone by default
+* `StreakData.time` is kept as a UTC date, so days compare the same in any time zone; add `isTodayOn` and `isAliveOn`
+
 ## 1.0.2
 
 * Fix: a contributable streak now resets after a missed day
